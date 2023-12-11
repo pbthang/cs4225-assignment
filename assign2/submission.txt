@@ -1,0 +1,40 @@
+====== Part 1 ======
+
+(brief 1-2 line explanation of your solution here)
+
+I filter out all lines that contains "alpha", "[notice]" or "[error]" to get the log for "gamma", 
+then I just find the lines that contains the word "invalid user". Fortunately, there is only 1 line
+like this with the password.
+
+(paste code relevant to your solution here)
+
+df = df.filter(~df.value.contains("alpha"))
+df = df.filter(~df.value.contains("[notice]"))
+df = df.filter(~df.value.contains("[error]")).cache()
+df.toPandas()
+df_with_pw = df.filter(df.value.contains("invalid user"))
+df_with_pw.toPandas()
+
+====== Part 2 ======
+
+(brief 1-2 line explanation of your solution here)
+
+I filter out all dst IPs that appears on days other than weekly sessions, then use SQL query to get all entries
+that does not contain those, and get the dst IPs where there is more than 13 distinct connections to it.
+
+(paste code relevant to your solution here)
+
+from pyspark.sql.functions import countDistinct
+
+df.createOrReplaceTempView("Network")
+non_bomb = df.filter(~df.day.isin(["0", "7", "14", "21", "28"])).createOrReplaceTempView("NotBomb")
+bomb = spark.sql("""
+  SELECT * FROM Network
+  WHERE Network.dst NOT IN (
+    SELECT dst FROM NotBomb
+  )
+""")
+bomb = bomb.groupBy("dst").agg(countDistinct("src")).withColumnRenamed("count(src)", "srcCount")
+bomb = bomb.where(bomb.srcCount >= 13)
+
+bomb.toPandas()
